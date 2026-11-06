@@ -1,6 +1,7 @@
 {
   "name": "knowledge-hub",
   "version": "1.0.0",
+  "type": "module",
   "description": "AI-powered knowledge repository",
   "private": true,
   "scripts": {

@@ -76,7 +76,15 @@ export default function MarkdownRenderer({ content, className }: MarkdownRendere
             return <>{children}</>;
           },
           a({ href, children }) {
-            const isExternal = href?.startsWith('http');
+            // Guard against browser Security Error: Content at https://... may not load or link to file:///
+            if (!href || href.startsWith('file:') || href.includes('file:///')) {
+              return (
+                <span className="inline-flex items-center font-mono text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border/50">
+                  {children}
+                </span>
+              );
+            }
+            const isExternal = href.startsWith('http://') || href.startsWith('https://');
             return (
               <a
                 href={href}
@@ -89,6 +97,9 @@ export default function MarkdownRenderer({ content, className }: MarkdownRendere
             );
           },
           img({ src, alt }) {
+            if (!src || src.startsWith('file:')) {
+              return null;
+            }
             return (
               <img
                 src={src}

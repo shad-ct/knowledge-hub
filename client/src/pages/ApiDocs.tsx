@@ -14,6 +14,10 @@ import { toast } from 'sonner';
 export default function ApiDocsPage() {
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
 
+  const baseUrl = typeof window !== 'undefined' && window.location.origin && !window.location.origin.includes('localhost')
+    ? window.location.origin
+    : 'https://knowledge-hub-production-b1d6.up.railway.app';
+
   const copyCode = (code: string, id: string) => {
     navigator.clipboard.writeText(code);
     setCopiedSection(id);
@@ -21,13 +25,13 @@ export default function ApiDocsPage() {
     setTimeout(() => setCopiedSection(null), 2000);
   };
 
-  const curlExample = `curl -X POST http://localhost:3001/api/v1/ai/publish \\
+  const curlExample = `curl -X POST ${baseUrl}/api/v1/ai/publish \\
   -H "Content-Type: application/json" \\
-  -H "X-API-Key: your-secret-api-key-here" \\
+  -H "X-API-Key: kh_sec_live_9921fa40" \\
   -d '{
     "title": "Quantum Error Correction via Surface Codes",
     "description": "An analysis of fault-tolerant quantum computation architectures.",
-    "content": "# Surface Codes\\n\\nTopological surface codes offer a viable path toward scalable fault-tolerant quantum memory...",
+    "content": "# Surface Codes\\n\\nTopological surface codes offer a viable path toward scalable fault-tolerant quantum memory...\\n\\n$$H = -J \\\\sum_p B_p - J \\\\sum_s A_s$$\\n\\n## Simulation\\n\\n\`\`\`python\\nimport numpy as np\\nprint(\"Syndrome extraction\")\\n\`\`\`",
     "contentType": "research-note",
     "topic": "Computational Science",
     "category": "Science",
@@ -37,10 +41,10 @@ export default function ApiDocsPage() {
 
   const pythonExample = `import requests
 
-url = "http://localhost:3001/api/v1/ai/publish"
+url = "${baseUrl}/api/v1/ai/publish"
 headers = {
     "Content-Type": "application/json",
-    "X-API-Key": "your-secret-api-key-here"
+    "X-API-Key": "kh_sec_live_9921fa40"
 }
 payload = {
     "title": "Quantum Error Correction via Surface Codes",
@@ -58,11 +62,11 @@ print("Status:", response.status_code)
 print("Response:", response.json())`;
 
   const jsExample = `const publishArticle = async () => {
-  const res = await fetch("http://localhost:3001/api/v1/ai/publish", {
+  const res = await fetch("${baseUrl}/api/v1/ai/publish", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-API-Key": "your-secret-api-key-here"
+      "X-API-Key": "kh_sec_live_9921fa40"
     },
     body: JSON.stringify({
       title: "Quantum Error Correction via Surface Codes",
@@ -238,3 +242,4 @@ print("Response:", response.json())`;
     </div>
   );
 }
+

@@ -447,20 +447,24 @@ export default function ArticleDetail() {
               )}
 
               {/* Source URL */}
-              {article.sourceUrl && (
+              {article.sourceUrl && !article.sourceUrl.startsWith('file:') && (
                 <section>
                   <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">
                     Source
                   </h3>
-                  <a
-                    href={article.sourceUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 text-sm text-primary hover:underline break-all"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5 flex-shrink-0" />
-                    {article.sourceUrl}
-                  </a>
+                  {article.sourceUrl.startsWith('http://') || article.sourceUrl.startsWith('https://') ? (
+                    <a
+                      href={article.sourceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-sm text-primary hover:underline break-all"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 flex-shrink-0" />
+                      {article.sourceUrl}
+                    </a>
+                  ) : (
+                    <span className="text-sm text-foreground break-all">{article.sourceUrl}</span>
+                  )}
                 </section>
               )}
 
@@ -471,20 +475,25 @@ export default function ArticleDetail() {
                     References
                   </h3>
                   <ol className="space-y-2">
-                    {article.references.map((ref, i) => (
-                      <li key={i} className="flex gap-3 text-sm text-muted-foreground">
-                        <span className="font-mono text-xs text-muted-foreground/60 flex-shrink-0 mt-0.5">
-                          [{i + 1}]
-                        </span>
-                        {ref.startsWith('http') ? (
-                          <a href={ref} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">
-                            {ref}
-                          </a>
-                        ) : (
-                          <span>{ref}</span>
-                        )}
-                      </li>
-                    ))}
+                    {article.references.map((ref, i) => {
+                      const isWebLink =
+                        (ref.startsWith('http://') || ref.startsWith('https://')) &&
+                        !ref.includes('file:///');
+                      return (
+                        <li key={i} className="flex gap-3 text-sm text-muted-foreground">
+                          <span className="font-mono text-xs text-muted-foreground/60 flex-shrink-0 mt-0.5">
+                            [{i + 1}]
+                          </span>
+                          {isWebLink ? (
+                            <a href={ref} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">
+                              {ref}
+                            </a>
+                          ) : (
+                            <span className="break-all">{ref}</span>
+                          )}
+                        </li>
+                      );
+                    })}
                   </ol>
                 </section>
               )}

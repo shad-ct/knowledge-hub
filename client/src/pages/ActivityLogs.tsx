@@ -258,3 +258,4 @@ export default function ActivityLogsPage() {
     </div>
   );
 }
+

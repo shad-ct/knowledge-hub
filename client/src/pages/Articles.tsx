@@ -521,3 +521,4 @@ export default function ArticlesPage() {
     </div>
   );
 }
+

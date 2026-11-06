@@ -62,7 +62,8 @@ Read operations are publicly accessible by default.
       contact: { name: 'Knowledge Hub' },
     },
     servers: [
-      { url: '/api/v1', description: 'API v1' },
+      { url: 'https://knowledge-hub-production-b1d6.up.railway.app/api/v1', description: 'Production Server (Railway)' },
+      { url: '/api/v1', description: 'Current Origin / Relative Path' },
     ],
     components: {
       securitySchemes: {
