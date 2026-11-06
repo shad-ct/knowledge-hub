@@ -87,11 +87,33 @@ print("Response:", response.json())`;
   return (
     <div className="space-y-8 pb-12">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">API Documentation & AI Integration</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          Knowledge Hub is AI-agnostic: any HTTP-capable AI agent can retrieve topic guidelines and publish content
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">API Documentation & AI Integration</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Knowledge Hub is AI-agnostic: any HTTP-capable AI agent can retrieve topic guidelines and publish content with zero friction.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <a
+            href="/ai/publish-ui"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors shadow-sm"
+          >
+            <span>Agent Fast-Publisher</span>
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+          <a
+            href="/api/docs.json"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-card text-xs text-foreground hover:bg-muted transition-colors"
+          >
+            <span>OpenAPI JSON</span>
+            <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
+          </a>
+        </div>
       </div>
 
       {/* Overview Cards */}

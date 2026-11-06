@@ -1,69 +1,69 @@
 import { Request, Response, NextFunction } from 'express';
 
+/**
+ * API Key Middleware
+ *
+ * Open Write Access by Default:
+ * Writes are publicly accessible without authentication unless process.env.REQUIRE_API_KEY === "true".
+ *
+ * When REQUIRE_API_KEY === "true", the key can be supplied via:
+ * 1. HTTP Header: 'X-API-Key' or 'Authorization: Bearer <key>'
+ * 2. Query Parameter: ?apiKey=<key> or ?api_key=<key>
+ * 3. JSON Request Body: { "apiKey": "<key>", ... } or { "api_key": "<key>", ... }
+ */
 export const apiKeyMiddleware = (req: Request, res: Response, next: NextFunction): void => {
-  const apiKey = process.env.API_WRITE_KEY;
-
-  // If no API key is configured, allow all requests (open mode)
-  if (!apiKey || apiKey === 'your-secret-api-key-here') {
+  // If API key is not strictly required, allow all write operations by default
+  const requireApiKey = process.env.REQUIRE_API_KEY === 'true';
+  if (!requireApiKey) {
     next();
     return;
   }
 
-  // 1. Allow same-origin requests from the browser dashboard (human curator).
-  // This satisfies the zero-login requirement for the web interface while preventing CSRF.
+  const expectedKey = process.env.API_WRITE_KEY || process.env.API_KEY;
+
+  // If REQUIRE_API_KEY is true but no expected key configured, allow
+  if (!expectedKey || expectedKey === 'your-secret-api-key-here') {
+    next();
+    return;
+  }
+
+  // Same-origin browser dashboard exemption
   const secFetchSite = req.headers['sec-fetch-site'];
   const host = req.headers.host;
   const origin = req.headers.origin;
   const referer = req.headers.referer;
 
-  const isSameOriginHeader = secFetchSite === 'same-origin';
-
-  let isOriginMatch = false;
-  if (origin && host) {
-    try {
-      const originHost = new URL(origin).host;
-      isOriginMatch = originHost === host;
-    } catch {
-      isOriginMatch = origin.replace(/^https?:\/\//, '') === host;
-    }
-  }
-
-  let isRefererMatch = false;
-  if (referer && host) {
-    try {
-      const refererHost = new URL(referer).host;
-      isRefererMatch = refererHost === host;
-    } catch {
-      isRefererMatch = false;
-    }
-  }
-
-  // Local development exemption
-  const isLocalDev =
-    process.env.NODE_ENV !== 'production' &&
-    Boolean(
-      origin && (origin.includes('localhost') || origin.includes('127.0.0.1'))
-    );
-
-  if (isSameOriginHeader || isOriginMatch || isRefererMatch || isLocalDev) {
+  if (
+    secFetchSite === 'same-origin' ||
+    (origin && host && origin.replace(/^https?:\/\//, '') === host) ||
+    (referer && host && referer.includes(host)) ||
+    (process.env.NODE_ENV !== 'production' && origin && (origin.includes('localhost') || origin.includes('127.0.0.1')))
+  ) {
     next();
     return;
   }
 
-  // 2. Programmatic calls (AI agents, external scripts, CLI) must supply the secret key
-  const providedKey =
-    req.headers['x-api-key'] ||
+  // Check 3 locations for the API key:
+  // 1. HTTP Header (X-API-Key or Authorization Bearer)
+  const headerKey =
+    (req.headers['x-api-key'] as string) ||
     req.headers['authorization']?.replace(/^Bearer\s+/i, '');
 
-  if (!providedKey || providedKey !== apiKey) {
+  // 2. Query Parameter (?apiKey=... or ?api_key=...)
+  const queryKey = (req.query?.apiKey || req.query?.api_key) as string | undefined;
+
+  // 3. JSON Request Body ({ apiKey: "...", ... })
+  const bodyKey = (req.body?.apiKey || req.body?.api_key) as string | undefined;
+
+  const providedKey = headerKey || queryKey || bodyKey;
+
+  if (!providedKey || providedKey !== expectedKey) {
     res.status(401).json({
       success: false,
-      error: 'Unauthorized: Invalid or missing API key. Include X-API-Key header.',
+      error: 'Unauthorized: Invalid or missing API key. Provide via X-API-Key header, ?apiKey= query parameter, or JSON body apiKey field.',
     });
     return;
   }
 
   next();
 };
-
-

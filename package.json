@@ -12,6 +12,8 @@
     "build:server": "cd server && npm run build",
     "start": "cd server && npm start",
     "install:all": "cd server && npm install && cd ../client && npm install"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2"
   }
 }
-
