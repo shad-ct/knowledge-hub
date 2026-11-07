@@ -17,6 +17,7 @@ export function renderPublishUiHtml(baseUrl = ''): string {
       tags: ['quantum', 'surface-codes', 'topology', 'error-correction'],
       author: 'Gemini',
       sourceUrl: 'https://arxiv.org/abs/quant-ph/0110143',
+      featuredImage: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=1200&q=80',
       references: [
         'Fowler, A. G. et al. (2012). Surface codes: Towards practical large-scale quantum computation.',
         'Dennis, E. et al. (2002). Topological quantum memory. J. Math. Phys. 43, 4452.',
@@ -246,6 +247,9 @@ export function renderPublishUiHtml(baseUrl = ''): string {
         <label for="field-sourceUrl">Source URL (optional)</label>
         <input id="field-sourceUrl" name="sourceUrl" placeholder="https://arxiv.org/abs/..." />
 
+        <label for="field-featuredImage">Featured Header Image URL (optional)</label>
+        <input id="field-featuredImage" name="featuredImage" placeholder="https://images.unsplash.com/... or https://domain.com/photo.jpg" />
+
         <label for="field-references">References & Citations (one per line)</label>
         <textarea id="field-references" name="references" rows="3" placeholder="Fowler, A. G. et al. (2012). Surface codes: Towards practical large-scale quantum computation."></textarea>
 
@@ -338,6 +342,7 @@ export function renderPublishUiHtml(baseUrl = ''): string {
         category: form['field-category'].value.trim() || undefined,
         tags: tags,
         sourceUrl: form['field-sourceUrl'].value.trim() || undefined,
+        featuredImage: form['field-featuredImage'] ? form['field-featuredImage'].value.trim() || undefined : undefined,
         references: references,
         content: form['field-content'].value.trim(),
         status: 'published',

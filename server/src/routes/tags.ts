@@ -2,8 +2,19 @@ import { Router, Request, Response } from 'express';
 import { Tag } from '../models/Tag.js';
 import { Article } from '../models/Article.js';
 import { asyncHandler, createError } from '../middleware/errorHandler.js';
+import { apiKeyMiddleware } from '../middleware/apiKey.js';
+import { logActivity } from '../utils/activityLogger.js';
 
 const router = Router();
+
+router.delete(
+  '/',
+  apiKeyMiddleware,
+  asyncHandler(async (_req: Request, res: Response) => {
+    const result = await Tag.deleteMany({});
+    res.json({ success: true, deletedCount: result.deletedCount });
+  }),
+);
 
 // GET /tags
 router.get(
@@ -38,5 +49,23 @@ router.get(
   })
 );
 
-export default router;
+router.delete(
+  '/:id',
+  apiKeyMiddleware,
+  asyncHandler(async (req: Request, res: Response) => {
+    const tag = await Tag.findByIdAndDelete(req.params.id);
+    if (!tag) throw createError('Tag not found', 404);
 
+    await logActivity({
+      action: 'tag.deleted',
+      entityType: 'tag',
+      entityId: tag._id,
+      entityTitle: tag.displayName,
+      actor: 'user',
+    });
+
+    res.json({ success: true, message: 'Tag deleted' });
+  }),
+);
+
+export default router;

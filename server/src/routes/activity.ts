@@ -1,8 +1,18 @@
 import { Router, Request, Response } from 'express';
 import { ActivityLog } from '../models/ActivityLog.js';
 import { asyncHandler, createError } from '../middleware/errorHandler.js';
+import { apiKeyMiddleware } from '../middleware/apiKey.js';
 
 const router = Router();
+
+router.delete(
+  '/',
+  apiKeyMiddleware,
+  asyncHandler(async (_req: Request, res: Response) => {
+    const result = await ActivityLog.deleteMany({});
+    res.json({ success: true, deletedCount: result.deletedCount });
+  }),
+);
 
 // GET /activity
 router.get(
@@ -59,4 +69,3 @@ router.get(
 );
 
 export default router;
-

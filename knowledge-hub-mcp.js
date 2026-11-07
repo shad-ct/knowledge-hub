@@ -74,6 +74,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             tags: { type: "array", items: { type: "string" }, description: "Tags array" },
             author: { type: "string", description: "AI Agent name", default: "Gemini" },
             sourceUrl: { type: "string", description: "Primary source or paper URL" },
+            featuredImage: { type: "string", description: "Public URL of featured header image for the writing (e.g. Unsplash, Wikimedia, direct HTTPS link)" },
             references: { type: "array", items: { type: "string" }, description: "Academic citations or source URLs" },
             status: { type: "string", enum: ["published", "draft"], default: "published" },
           },
@@ -101,6 +102,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                   tags: { type: "array", items: { type: "string" } },
                   author: { type: "string" },
                   sourceUrl: { type: "string" },
+                  featuredImage: { type: "string", description: "Public URL of featured header image" },
                   references: { type: "array", items: { type: "string" } },
                 },
                 required: ["title", "description", "content"],
@@ -136,10 +138,35 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             title: { type: "string" },
             description: { type: "string" },
             content: { type: "string" },
+            featuredImage: { type: "string", description: "Public URL of featured header image" },
             tags: { type: "array", items: { type: "string" } },
             references: { type: "array", items: { type: "string" } },
           },
           required: ["id"],
+        },
+      },
+      {
+        name: "kh_add_article_note",
+        description: "Add a curator comment or research note to an article in MongoDB.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            articleId: { type: "string", description: "Article ID to annotate" },
+            content: { type: "string", description: "Markdown text of note or curator critique" },
+            author: { type: "string", description: "Author name (e.g. 'Curator' or agent name)", default: "Curator" },
+          },
+          required: ["articleId", "content"],
+        },
+      },
+      {
+        name: "kh_get_article_notes",
+        description: "Retrieve all curator notes and comments for an article from MongoDB.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            articleId: { type: "string", description: "Article ID" },
+          },
+          required: ["articleId"],
         },
       },
       {
@@ -226,6 +253,26 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         method: "PATCH",
         headers: buildHeaders(true),
         body: JSON.stringify(updateFields),
+      });
+      const data = await res.json();
+      return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+    }
+
+    if (name === "kh_add_article_note") {
+      const { articleId, content, author = "Curator" } = args;
+      const res = await fetch(`${BASE_URL}/api/v1/articles/${encodeURIComponent(articleId)}/notes`, {
+        method: "POST",
+        headers: buildHeaders(true),
+        body: JSON.stringify({ content, author }),
+      });
+      const data = await res.json();
+      return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+    }
+
+    if (name === "kh_get_article_notes") {
+      const { articleId } = args;
+      const res = await fetch(`${BASE_URL}/api/v1/articles/${encodeURIComponent(articleId)}/notes`, {
+        headers: buildHeaders(),
       });
       const data = await res.json();
       return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };

@@ -6,6 +6,7 @@ import { Category } from '../models/Category.js';
 import { Topic } from '../models/Topic.js';
 import { Tag } from '../models/Tag.js';
 import { ArticleVersion } from '../models/ArticleVersion.js';
+import { Note } from '../models/Note.js';
 import { asyncHandler, createError } from '../middleware/errorHandler.js';
 import { apiKeyMiddleware } from '../middleware/apiKey.js';
 import { validate } from '../middleware/validate.js';
@@ -15,6 +16,50 @@ import { logActivity } from '../utils/activityLogger.js';
 import { resolveOrCreateTags } from '../utils/tagResolver.js';
 
 const router = Router();
+
+const getTimeZoneParts = (date: Date, timeZone: string) => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+  }).formatToParts(date);
+  return {
+    year: Number(parts.find((part) => part.type === 'year')?.value),
+    month: Number(parts.find((part) => part.type === 'month')?.value),
+    day: Number(parts.find((part) => part.type === 'day')?.value),
+  };
+};
+
+const getZonedMidnight = (date: Date, timeZone: string): Date => {
+  const local = getTimeZoneParts(date, timeZone);
+  const guess = Date.UTC(local.year, local.month - 1, local.day);
+  const offsetParts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+    second: 'numeric',
+    hour12: false,
+  }).formatToParts(new Date(guess));
+  const asUtc = Date.UTC(
+    Number(offsetParts.find((part) => part.type === 'year')?.value),
+    Number(offsetParts.find((part) => part.type === 'month')?.value) - 1,
+    Number(offsetParts.find((part) => part.type === 'day')?.value),
+    Number(offsetParts.find((part) => part.type === 'hour')?.value),
+    Number(offsetParts.find((part) => part.type === 'minute')?.value),
+    Number(offsetParts.find((part) => part.type === 'second')?.value),
+  );
+  return new Date(guess - (asUtc - guess));
+};
+
+const getPreviousLocalMidnight = (date: Date, timeZone: string): Date => {
+  const local = getTimeZoneParts(date, timeZone);
+  const previousDate = new Date(Date.UTC(local.year, local.month - 1, local.day - 1));
+  return getZonedMidnight(previousDate, timeZone);
+};
 
 const CreateArticleSchema = z.object({
   title: z.string().min(1).max(500),
@@ -153,6 +198,56 @@ router.get(
   })
 );
 
+// GET /articles/home — compact, timezone-aware reading queue
+router.get(
+  '/home',
+  asyncHandler(async (req: Request, res: Response) => {
+    const requestedTimeZone = typeof req.query.tz === 'string' ? req.query.tz : 'UTC';
+    let timeZone = 'UTC';
+    try {
+      new Intl.DateTimeFormat('en-US', { timeZone: requestedTimeZone }).format();
+      timeZone = requestedTimeZone;
+    } catch {
+      timeZone = 'UTC';
+    }
+
+    const todayStart = getZonedMidnight(new Date(), timeZone);
+    const yesterdayStart = getPreviousLocalMidnight(new Date(), timeZone);
+    const baseFilter = { deletedAt: null, status: 'published' };
+    const articleFields = {
+      _id: 1,
+      slug: 1,
+      title: 1,
+      description: 1,
+      author: 1,
+      readingTime: 1,
+      publishedAt: 1,
+      isRead: 1,
+      bookmarkedAt: 1,
+    };
+    const populate = (query: ReturnType<typeof Article.find>) =>
+      query
+        .select(articleFields)
+        .sort({ publishedAt: -1 })
+        .lean();
+
+    const [today, yesterdayUnread, olderUnreadCount] = await Promise.all([
+      populate(Article.find({ ...baseFilter, publishedAt: { $gte: todayStart } })),
+      populate(Article.find({
+        ...baseFilter,
+        isRead: false,
+        publishedAt: { $gte: yesterdayStart, $lt: todayStart },
+      })),
+      Article.countDocuments({ ...baseFilter, isRead: false, publishedAt: { $lt: yesterdayStart } }),
+    ]);
+
+    res.json({
+      success: true,
+      data: { today, yesterdayUnread, olderUnreadCount },
+    });
+  }),
+);
+
 // GET /articles/stats — dashboard statistics
 router.get(
   '/stats',
@@ -225,6 +320,18 @@ router.get(
       pagination: { page: pageNum, limit: limitNum, total, pages: Math.ceil(total / limitNum) },
     });
   })
+);
+
+router.delete(
+  '/trash',
+  apiKeyMiddleware,
+  asyncHandler(async (_req: Request, res: Response) => {
+    const trashed = await Article.find({ deletedAt: { $ne: null } }).select('_id').lean();
+    const ids = trashed.map((article) => article._id);
+    await ArticleVersion.deleteMany({ articleId: { $in: ids } });
+    const result = await Article.deleteMany({ deletedAt: { $ne: null } });
+    res.json({ success: true, deletedCount: result.deletedCount });
+  }),
 );
 
 // GET /articles/:id — single article
@@ -496,5 +603,65 @@ router.post(
   })
 );
 
-export default router;
+// ─── Article Notes & Annotations (MongoDB) ────────────────────────────────────
 
+// GET /articles/:id/notes — retrieve curator notes/comments for an article
+router.get(
+  '/:id/notes',
+  asyncHandler(async (req: Request, res: Response) => {
+    const article = await Article.findOne({ _id: req.params.id, deletedAt: null });
+    if (!article) throw createError('Article not found', 404);
+
+    const notes = await Note.find({ articleId: req.params.id }).sort({ createdAt: -1 }).lean();
+    res.json({ success: true, data: notes });
+  })
+);
+
+// POST /articles/:id/notes — add a curator note/comment to an article
+router.post(
+  '/:id/notes',
+  apiKeyMiddleware,
+  asyncHandler(async (req: Request, res: Response) => {
+    const article = await Article.findOne({ _id: req.params.id, deletedAt: null });
+    if (!article) throw createError('Article not found', 404);
+
+    const content = (req.body.content || '').trim();
+    if (!content) throw createError('Note content cannot be empty', 400);
+
+    const author = (req.body.author || 'Curator').trim();
+
+    const note = await Note.create({
+      articleId: article._id,
+      content,
+      author,
+    });
+
+    await logActivity({
+      action: 'article.updated',
+      entityType: 'article',
+      entityId: article._id as Types.ObjectId,
+      entityTitle: article.title,
+      actor: author,
+      metadata: { noteId: note._id, noteSnippet: content.slice(0, 100) },
+    });
+
+    res.status(201).json({ success: true, message: 'Note saved successfully', data: note });
+  })
+);
+
+// DELETE /articles/:id/notes/:noteId — delete a curator note
+router.delete(
+  '/:id/notes/:noteId',
+  apiKeyMiddleware,
+  asyncHandler(async (req: Request, res: Response) => {
+    const note = await Note.findOneAndDelete({
+      _id: req.params.noteId,
+      articleId: req.params.id,
+    });
+    if (!note) throw createError('Note not found', 404);
+
+    res.json({ success: true, message: 'Note deleted' });
+  })
+);
+
+export default router;

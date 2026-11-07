@@ -19,8 +19,11 @@ import {
   ChevronLeft,
   List,
   AlertTriangle,
+  MessageSquare,
+  Send,
+  Image as ImageIcon,
 } from 'lucide-react';
-import { articlesApi, libraryApi } from '../lib/api';
+import { articlesApi, libraryApi, notesApi } from '../lib/api';
 import { cn, formatDate, formatReadingTime, contentTypeColor, contentTypeLabel } from '../lib/utils';
 import MarkdownRenderer from '../components/MarkdownRenderer';
 import ArticleCard from '../components/ArticleCard';
@@ -418,6 +421,17 @@ export default function ArticleDetail() {
               </div>
             </header>
 
+            {/* Featured Image Banner */}
+            {article.featuredImage && (article.featuredImage.startsWith('http://') || article.featuredImage.startsWith('https://') || article.featuredImage.startsWith('/')) && (
+              <div className="rounded-xl overflow-hidden border border-border bg-muted/20 mb-8 max-h-[460px] w-full shadow-sm">
+                <img
+                  src={article.featuredImage}
+                  alt={article.title}
+                  className="w-full h-full object-cover max-h-[460px]"
+                />
+              </div>
+            )}
+
             {/* ── Content ── */}
             <div ref={contentRef} className="article-content">
               <MarkdownRenderer content={article.content} />
@@ -498,6 +512,9 @@ export default function ArticleDetail() {
                 </section>
               )}
 
+              {/* ── Curator Notes & Annotations (MongoDB) ── */}
+              <CuratorNotesSection articleId={article._id} />
+
               {/* Related Articles */}
               {related.length > 0 && (
                 <section>
@@ -550,6 +567,137 @@ export default function ArticleDetail() {
         </div>
       </div>
     </>
+  );
+}
+
+// ─── Curator Notes & Annotations (MongoDB) ───────────────────────────────────
+function CuratorNotesSection({ articleId }: { articleId: string }) {
+  const queryClient = useQueryClient();
+  const [noteText, setNoteText] = useState('');
+  const [authorName, setAuthorName] = useState('Curator');
+
+  const { data: notesData, isLoading } = useQuery({
+    queryKey: ['article-notes', articleId],
+    queryFn: () => notesApi.list(articleId),
+  });
+
+  const notes = notesData?.data || [];
+
+  const addMutation = useMutation({
+    mutationFn: (content: string) =>
+      notesApi.create(articleId, { content, author: authorName.trim() || 'Curator' }),
+    onSuccess: () => {
+      setNoteText('');
+      toast.success('Note saved to MongoDB');
+      queryClient.invalidateQueries({ queryKey: ['article-notes', articleId] });
+      queryClient.invalidateQueries({ queryKey: ['activity'] });
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.error || 'Failed to save note');
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (noteId: string) => notesApi.delete(articleId, noteId),
+    onSuccess: () => {
+      toast.success('Note deleted');
+      queryClient.invalidateQueries({ queryKey: ['article-notes', articleId] });
+    },
+    onError: () => {
+      toast.error('Failed to delete note');
+    },
+  });
+
+  const handleAdd = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!noteText.trim()) return toast.error('Note cannot be empty');
+    addMutation.mutate(noteText.trim());
+  };
+
+  return (
+    <section className="space-y-4 pt-6 border-t border-border">
+      <div className="flex items-center justify-between">
+        <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+          <MessageSquare className="w-3.5 h-3.5 text-primary" /> Curator Notes & Annotations
+          <span className="text-[11px] font-normal px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+            {notes.length}
+          </span>
+        </h3>
+      </div>
+
+      {/* Add note input */}
+      <form onSubmit={handleAdd} className="space-y-2.5 bg-card border border-border rounded-xl p-3.5 shadow-sm">
+        <div className="flex items-center justify-between gap-2 pb-1">
+          <span className="text-xs font-medium text-foreground">Add Note, Annotation, or Critique</span>
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span>author:</span>
+            <input
+              type="text"
+              value={authorName}
+              onChange={(e) => setAuthorName(e.target.value)}
+              placeholder="Curator"
+              className="bg-muted px-2 py-0.5 rounded text-xs text-foreground outline-none border border-border/50 w-24"
+            />
+          </div>
+        </div>
+
+        <textarea
+          value={noteText}
+          onChange={(e) => setNoteText(e.target.value)}
+          placeholder="Write your research notes, critique, synthesis, or follow-up questions..."
+          rows={3}
+          className="w-full bg-background border border-border rounded-lg p-2.5 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-primary transition-colors resize-y"
+        />
+
+        <div className="flex justify-end">
+          <button
+            type="submit"
+            disabled={addMutation.isPending || !noteText.trim()}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+          >
+            <Send className="w-3 h-3" />
+            <span>{addMutation.isPending ? 'Saving...' : 'Save Note'}</span>
+          </button>
+        </div>
+      </form>
+
+      {/* Notes list */}
+      {isLoading ? (
+        <div className="text-xs text-muted-foreground animate-pulse py-2">Loading notes...</div>
+      ) : notes.length === 0 ? (
+        <p className="text-xs text-muted-foreground italic bg-muted/20 p-3 rounded-lg border border-dashed border-border text-center">
+          No curator notes on this article yet. Add your thoughts or observations above.
+        </p>
+      ) : (
+        <div className="space-y-2.5">
+          {notes.map((note) => (
+            <div key={note._id} className="bg-card/70 border border-border rounded-xl p-3.5 space-y-1.5 text-xs">
+              <div className="flex items-center justify-between text-muted-foreground text-[11px]">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-foreground px-2 py-0.5 rounded bg-muted/80">
+                    {note.author || 'Curator'}
+                  </span>
+                  <span>·</span>
+                  <span>{formatDate(note.createdAt)}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => deleteMutation.mutate(note._id)}
+                  disabled={deleteMutation.isPending}
+                  className="text-muted-foreground hover:text-red-400 p-1 rounded transition-colors"
+                  title="Delete note"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <p className="text-foreground whitespace-pre-wrap leading-relaxed">
+                {note.content}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 

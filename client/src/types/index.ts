@@ -91,6 +91,15 @@ export interface Bookmark {
   createdAt: string;
 }
 
+export interface ArticleNote {
+  _id: string;
+  articleId: string;
+  content: string;
+  author: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface PaginatedResponse<T> {
   success: boolean;
   data: T[];
@@ -119,6 +128,12 @@ export interface DashboardStats {
   topics: number;
   categories: number;
   contributors: number;
+}
+
+export interface HomeResponse {
+  today: Article[];
+  yesterdayUnread: Article[];
+  olderUnreadCount: number;
 }
 
 export interface ArticleFilters {
@@ -163,4 +178,3 @@ export interface CreateTopicPayload {
   priority?: TopicPriority;
   status?: TopicStatus;
 }
-

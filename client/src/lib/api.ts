@@ -5,15 +5,19 @@ import type {
   PaginatedResponse,
   ApiResponse,
   DashboardStats,
+  HomeResponse,
   Category,
   Tag,
   Topic,
   ActivityLog,
+  ArticleNote,
   CreateArticlePayload,
   CreateTopicPayload,
 } from '../types';
 
-const BASE_URL = '/api/v1';
+const RAILWAY_API_ORIGIN = 'https://knowledge-hub-production-b1d6.up.railway.app';
+const BASE_URL = import.meta.env.VITE_API_URL
+  || (import.meta.env.DEV ? `${RAILWAY_API_ORIGIN}/api/v1` : '/api/v1');
 
 const client = axios.create({
   baseURL: BASE_URL,
@@ -39,6 +43,9 @@ export const articlesApi = {
 
   getStats: () =>
     client.get<ApiResponse<DashboardStats>>('/articles/stats').then((r) => r.data),
+
+  getHome: (timeZone: string) =>
+    client.get<ApiResponse<HomeResponse>>('/articles/home', { params: { tz: timeZone } }).then((r) => r.data),
 
   getTrash: (page = 1, limit = 20) =>
     client.get<PaginatedResponse<Article>>('/articles/trash', { params: { page, limit } }).then((r) => r.data),
@@ -149,5 +156,16 @@ export const activityApi = {
     client.get<ApiResponse<ActivityLog>>(`/activity/${id}`).then((r) => r.data),
 };
 
-export default client;
+// ─── Article Notes & Annotations ──────────────────────────────────────────────
+export const notesApi = {
+  list: (articleId: string) =>
+    client.get<ApiResponse<ArticleNote[]>>(`/articles/${articleId}/notes`).then((r) => r.data),
 
+  create: (articleId: string, payload: { content: string; author?: string }) =>
+    client.post<ApiResponse<ArticleNote>>(`/articles/${articleId}/notes`, payload).then((r) => r.data),
+
+  delete: (articleId: string, noteId: string) =>
+    client.delete<ApiResponse<null>>(`/articles/${articleId}/notes/${noteId}`).then((r) => r.data),
+};
+
+export default client;

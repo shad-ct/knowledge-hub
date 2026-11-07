@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -8,6 +8,8 @@ import {
   Clock,
   History,
   AlertTriangle,
+  Image as ImageIcon,
+  X,
 } from 'lucide-react';
 import { articlesApi, categoriesApi, topicsApi } from '../lib/api';
 import MarkdownRenderer from '../components/MarkdownRenderer';
@@ -39,10 +41,35 @@ export default function EditArticlePage() {
   const [tagsInput, setTagsInput] = useState('');
   const [author, setAuthor] = useState('');
   const [sourceUrl, setSourceUrl] = useState('');
+  const [featuredImage, setFeaturedImage] = useState('');
   const [referencesInput, setReferencesInput] = useState('');
   const [status, setStatus] = useState<ArticleStatus>('published');
   const [tab, setTab] = useState<'write' | 'preview' | 'split'>('split');
   const [isDirty, setIsDirty] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleInsertImage = () => {
+    const url = prompt('Enter image URL:');
+    if (!url) return;
+    const alt = prompt('Enter image caption/alt text:', 'Illustration') || 'Image';
+    const imageMarkdown = `\n![${alt}](${url.trim()})\n`;
+
+    if (textareaRef.current) {
+      const textarea = textareaRef.current;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const newContent = content.substring(0, start) + imageMarkdown + content.substring(end);
+      setContent(newContent);
+      setIsDirty(true);
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + imageMarkdown.length, start + imageMarkdown.length);
+      }, 50);
+    } else {
+      setContent((prev) => prev + imageMarkdown);
+      setIsDirty(true);
+    }
+  };
 
   const { data: articleData, isLoading } = useQuery({
     queryKey: ['article', id],
@@ -78,6 +105,7 @@ export default function EditArticlePage() {
       setTagsInput((a.tagIds || []).map((t) => t.displayName || t.name).join(', '));
       setAuthor(a.author || '');
       setSourceUrl(a.sourceUrl || '');
+      setFeaturedImage(a.featuredImage || '');
       setReferencesInput((a.references || []).join('\n'));
       setStatus(a.status || 'published');
       setIsDirty(false);
@@ -130,6 +158,7 @@ export default function EditArticlePage() {
       tags,
       author: author.trim() || undefined,
       sourceUrl: sourceUrl.trim() || undefined,
+      featuredImage: featuredImage.trim() || undefined,
       references,
       status,
       editedBy: 'Curator',
@@ -329,10 +358,67 @@ export default function EditArticlePage() {
         </div>
       </div>
 
+      {/* Featured Image & Visual Assets */}
+      <div className="bg-card border border-border rounded-lg p-3 space-y-2">
+        <div className="flex items-center justify-between">
+          <label className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
+            <ImageIcon className="w-3.5 h-3.5 text-primary" />
+            Featured Header Image URL (Optional)
+          </label>
+          {featuredImage && (
+            <button
+              type="button"
+              onClick={() => {
+                setFeaturedImage('');
+                setIsDirty(true);
+              }}
+              className="text-[10px] text-muted-foreground hover:text-red-400 flex items-center gap-1 transition-colors"
+            >
+              <X className="w-3 h-3" /> Remove image
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            type="url"
+            placeholder="https://images.unsplash.com/... or https://domain.com/photo.jpg"
+            value={featuredImage}
+            onChange={(e) => {
+              setFeaturedImage(e.target.value);
+              setIsDirty(true);
+            }}
+            className="w-full bg-background border border-border rounded px-3 py-1.5 text-xs outline-none focus:border-primary text-foreground placeholder:text-muted-foreground/60"
+          />
+        </div>
+        {featuredImage && (
+          <div className="relative rounded-md overflow-hidden border border-border max-h-40 bg-muted/40 flex items-center justify-center">
+            <img
+              src={featuredImage}
+              alt="Featured preview"
+              className="w-full h-40 object-cover"
+              onError={(e) => {
+                (e.currentTarget as HTMLElement).style.display = 'none';
+              }}
+            />
+          </div>
+        )}
+      </div>
+
       {/* Markdown Content Editor */}
       <div className="space-y-2">
         <div className="flex items-center justify-between border-b border-border pb-1">
-          <label className="text-xs font-semibold text-foreground">Markdown Content</label>
+          <div className="flex items-center gap-3">
+            <label className="text-xs font-semibold text-foreground">Markdown Content</label>
+            <button
+              type="button"
+              onClick={handleInsertImage}
+              className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-primary bg-muted/60 hover:bg-muted px-2 py-0.5 rounded transition-colors"
+              title="Insert image markdown at cursor"
+            >
+              <ImageIcon className="w-3 h-3" />
+              <span>Insert Image</span>
+            </button>
+          </div>
           <div className="flex items-center gap-1 bg-muted rounded p-0.5 text-xs">
             <button
               type="button"
@@ -371,6 +457,7 @@ export default function EditArticlePage() {
           {(tab === 'write' || tab === 'split') && (
             <div className={cn(tab === 'split' ? '' : 'md:col-span-2')}>
               <textarea
+                ref={textareaRef}
                 value={content}
                 onChange={(e) => {
                   setContent(e.target.value);

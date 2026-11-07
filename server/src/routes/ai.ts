@@ -135,6 +135,17 @@ function normalizeReferencesInput(references: unknown): string[] {
   return [];
 }
 
+function normalizePublishedAt(value: unknown, status: string): Date | undefined {
+  if (value === undefined || value === null || value === '') {
+    return status === 'published' ? new Date() : undefined;
+  }
+  const parsed = new Date(String(value));
+  if (Number.isNaN(parsed.getTime())) {
+    throw createError('publishedAt must be a valid date', 400);
+  }
+  return parsed;
+}
+
 /**
  * Core article publish/upsert engine.
  * Handles auto-resolution, tag creation, idempotency, and activity logging.
@@ -150,6 +161,7 @@ async function publishSingleArticle(rawItem: Record<string, any>, req: Request) 
   const contentType = rawItem.contentType || 'article';
   const author = rawItem.author || 'Gemini';
   const status = rawItem.status === 'draft' ? 'draft' : 'published';
+  const publishedAt = normalizePublishedAt(rawItem.publishedAt, status);
   const allowDuplicate = Boolean(rawItem.allowDuplicate);
 
   // Auto-resolve topic & category
@@ -193,6 +205,7 @@ async function publishSingleArticle(rawItem: Record<string, any>, req: Request) 
     if (featuredImage !== undefined) article.featuredImage = featuredImage;
     article.status = status;
     article.readingTime = readingTime;
+    article.publishedAt = publishedAt;
     article.updatedAt = new Date();
     await article.save();
 
@@ -228,7 +241,7 @@ async function publishSingleArticle(rawItem: Record<string, any>, req: Request) 
       featuredImage,
       status,
       readingTime,
-      publishedAt: status === 'published' ? new Date() : undefined,
+      publishedAt,
     });
 
     await logActivity({

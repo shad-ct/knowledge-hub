@@ -31,3 +31,6 @@ npm-debug.log*
 # TypeScript cache
 *.tsbuildinfo
 
+# Cloned reference repos
+ditto.site/
+

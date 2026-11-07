@@ -1,6 +1,7 @@
 import { Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import DashboardPage from './pages/Dashboard';
+import HomePage from './pages/Home';
 import ArticlesPage from './pages/Articles';
 import ArticleDetailPage from './pages/ArticleDetail';
 import CreateArticlePage from './pages/CreateArticle';
@@ -21,7 +22,8 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Layout />}>
-        <Route index element={<DashboardPage />} />
+        <Route index element={<HomePage />} />
+        <Route path="stats" element={<DashboardPage />} />
         <Route path="articles" element={<ArticlesPage />} />
         <Route path="articles/new" element={<CreateArticlePage />} />
         <Route path="articles/:id" element={<ArticleDetailPage />} />
@@ -41,4 +43,3 @@ export default function App() {
     </Routes>
   );
 }
-

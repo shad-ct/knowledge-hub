@@ -5,12 +5,12 @@
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 224 71.4% 4.1%;
+    --foreground: 0 0% 7%;
     --card: 0 0% 100%;
-    --card-foreground: 224 71.4% 4.1%;
+    --card-foreground: 0 0% 7%;
     --popover: 0 0% 100%;
-    --popover-foreground: 224 71.4% 4.1%;
-    --primary: 262.1 83.3% 57.8%;
+    --popover-foreground: 0 0% 7%;
+    --primary: 250 100% 68%;
     --primary-foreground: 210 20% 98%;
     --secondary: 220 14.3% 95.9%;
     --secondary-foreground: 220.9 39.3% 11%;
@@ -20,20 +20,20 @@
     --accent-foreground: 220.9 39.3% 11%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 20% 98%;
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 262.1 83.3% 57.8%;
-    --radius: 0.5rem;
+    --border: 240 13% 91%;
+    --input: 240 13% 91%;
+    --ring: 250 100% 68%;
+    --radius: 0;
   }
 
   .dark {
-    --background: 224 71.4% 4.1%;
-    --foreground: 210 20% 98%;
-    --card: 224 71.4% 6%;
-    --card-foreground: 210 20% 98%;
-    --popover: 224 71.4% 6%;
-    --popover-foreground: 210 20% 98%;
-    --primary: 263.4 70% 50.4%;
+    --background: 240 20% 3%;
+    --foreground: 240 20% 92%;
+    --card: 240 20% 6%;
+    --card-foreground: 240 20% 92%;
+    --popover: 240 20% 6%;
+    --popover-foreground: 240 20% 92%;
+    --primary: 250 100% 68%;
     --primary-foreground: 210 20% 98%;
     --secondary: 215 27.9% 16.9%;
     --secondary-foreground: 210 20% 98%;
@@ -43,9 +43,9 @@
     --accent-foreground: 210 20% 98%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 20% 98%;
-    --border: 215 27.9% 16.9%;
-    --input: 215 27.9% 16.9%;
-    --ring: 263.4 70% 50.4%;
+    --border: 240 13% 13%;
+    --input: 240 13% 13%;
+    --ring: 250 100% 68%;
   }
 }
 
@@ -57,6 +57,11 @@
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
   }
 
   /* Scrollbar styling */
@@ -132,15 +137,38 @@
 
 /* Unread indicator */
 .unread-dot {
-  @apply w-2 h-2 rounded-full bg-primary flex-shrink-0;
+  @apply h-1.5 w-1.5 rounded-full bg-primary flex-shrink-0;
 }
 
-/* Article card hover */
-.article-card {
-  @apply transition-all duration-200;
+.home-column {
+  max-width: 640px;
+  margin: 0 auto;
+  padding-top: 24px;
 }
 
-.article-card:hover {
-  @apply border-primary/30;
+.section-label {
+  @apply text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/70;
 }
 
+.icon-button {
+  @apply inline-flex h-9 min-w-9 items-center justify-center gap-1 text-muted-foreground transition-colors hover:text-foreground;
+}
+
+.bg-surface {
+  background-color: hsl(var(--card));
+}
+
+.text-text-faint {
+  color: hsl(240 10% 40%);
+}
+
+.dark .text-text-faint {
+  color: hsl(240 10% 42%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
